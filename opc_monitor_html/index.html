@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title></title>
+		<link rel="stylesheet" href="frames/layui/css/layui.css" />
+	</head>
+	<body class="layui-bg-black" style="min-width: 800px;">
+		<div style="margin-top: 20px;">
+			<div style="height: 50px;width: 800px;margin: auto;">
+				<input class="layui-input" id="blockName" placeholder="请输入块名" />
+			</div>
+
+			<div style="height: 50px;width: 800px;margin: auto;">
+				<label class="layui-form-label" style="left: -15px;width: 60px;">输出信号</label>
+				<select class="layui-select" id="outGroups" style="width: 300px;" onfocus="loadOutGroups()"
+					onchange="selectedOutGroup()">
+					<option disabled="disabled" selected="selected" value="null">请选择组</option>
+				</select>
+				<select class="layui-select" id="outItems" style="width: 400px;margin-left: 5px;" disabled="disabled"
+					onfocus="loadOutItemps()">
+					<option disabled="disabled" value="null" selected="selected">请选择点</option>
+				</select>
+			</div>
+
+
+			<div style="height: 560px;margin: auto;width: 800px;">
+				<label class="layui-form-label" style="left: -15px;width: 60px;">输入信号</label>
+				<select class="layui-select" id="inGroups" style="width: 300px;" onfocus="loadInGroups()"
+					onchange="selectedInGroup()">
+					<option disabled="disabled" selected="selected" value="null">请选择组</option>
+				</select>
+				<table id="inItemsTable" lay-filter="inItemsTable"></table>
+			</div>
+
+
+			<div style="height: 50px;width: 800px;margin: auto;">
+				<select class="layui-select" id="blockNameList" style="width: 481px;" onchange="selectedMonitorBlock()">
+					<option disabled="disabled" value="null" selected="selected">请选择开始监控块</option>
+				</select>
+				<button class="layui-btn" style="margin-top: -2px;margin-left: 5px;" id="showBlock" onclick="showBlock()">显示块列表</button>
+				<button id="startMonitor" class="layui-btn layui-btn-disabled"
+					style="margin-top: -2px;margin-left: 5px;" disabled="disabled"
+					onclick="startMonitor()">开始监控</button>
+				<button id="startMonitorAllList" class="layui-btn layui-btn-warm" style="margin-top: -2px;margin-left: 5px;" onclick="startMonitorAllList()">全部监控</button>
+			</div>
+
+
+			<div style="height: 50px;width: 800px;margin: auto;">
+				<select class="layui-select" id="onlineMonitorList" style="width: 481px;"
+					onchange="selectedOnlineMonitor()">
+					<option disabled="disabled" value="null" selected="selected">请选择停止监控块</option>
+				</select>
+				<button id="showOnlineMonitor" class="layui-btn" style="margin-top: -2px;margin-left: 5px;"
+					onclick="showOnlineBlock()">显示块列表</button>
+				<button id="stopMonitor" class="layui-btn layui-btn-disabled" style="margin-top: -2px;margin-left: 5px;"
+					disabled="disabled" onclick="stopMonitor()">停止监控</button>
+				<button id="stopMonitorAllList" class="layui-btn layui-btn-warm" style="margin-top: -2px;margin-left: 5px;" onclick="stopMonitorAllList()">全部停止</button>
+			</div>
+		</div>
+		<script src="js/jquery-3.4.1.js"></script>
+		<script src="js/ApiLocationRouter.js"></script>
+		<script src="frames/layui/layui.js"></script>
+		<script>
+			//OUT
+			function loadOutGroups() {
+				$("#outGroups").empty();
+				$("#outGroups").append("<option disabled='disabled' value='null' selected='selected'>请选择组</option>")
+				$.post(
+					CommonLocation + "getGroups",
+					function(result) {
+						var res = JSON.parse(result);
+						for (var i = 0; i < res.length; i++) {
+							$("#outGroups").append("<option value='" + res[i].groupName + "'>" + res[i].groupName +
+								"</option>");
+						}
+					}
+				);
+			}
+
+			function selectedOutGroup() {
+				console.log($("#outGroups").find("option:selected").val());
+				if ($("#outGroups").find("option:selected").val() != "null") {
+					$("#outItems").removeAttr("disabled");
+					$("#outItems").addClass("layui-btn-warm");
+				}
+
+			}
+
+			function loadOutItemps() {
+				$("#outItems").empty();
+				$("#outItems").append("<option disabled='disabled'  value='null' selected='selected'>请选择点</option>")
+				$.post(
+					CommonLocation + "getItems", {
+						groupName: function() {
+							return $("#outGroups").find("option:selected").text().split(".")[1];
+						}
+					},
+					function(result) {
+						var res = JSON.parse(result);
+						for (var i = 0; i < res.items.length; i++) {
+							$("#outItems").append("<option value='" + res.items[i] + "'>" + res.items[i] + "</option>");
+						}
+					}
+				);
+			}
+
+			//IN
+			function loadInGroups() {
+				$("#inGroups").empty();
+				$("#inGroups").append("<option disabled='disabled'  value='null' selected='selected'>请选择组</option>")
+				$.post(
+					CommonLocation + "getGroups",
+					function(result) {
+						var res = JSON.parse(result);
+						for (var i = 0; i < res.length; i++) {
+							$("#inGroups").append("<option value='" + res[i].groupName + "'>" + res[i].groupName +
+								"</option>");
+						}
+					}
+				);
+			}
+
+			function selectedInGroup() {
+				if ($("#inGroups").find("option:selected").val() != "null") {
+					$("#inItems").removeAttr("disabled");
+					$("#inItems").addClass("layui-btn-warm");
+				}
+				layui.use("table", function() {
+					var table = layui.table;
+					table.reload('inItemsTable', {
+						url: CommonLocation + "getItems",
+						method: "post",
+						where: {
+							groupName: function() {
+								return $("#inGroups").find("option:selected").text().split(".")[1];
+							}
+						},
+						parseData: function(res) { //res 即为原始返回的数据
+							var arr = new Array();
+							console.log(res)
+							for (var j = 0; j < res.items.length; j++) {
+								arr[j] = JSON.parse('{"id":"' + res.items[j] + '"}');
+							}
+							return {
+								"code": 0, //解析接口状态
+								"count": res.items, //解析数据长度
+								"data": arr //解析数据列表
+							};
+						}
+					});
+					table.on('toolbar(inItemsTable)', function(obj) {
+						var checkStatus = table.checkStatus(obj.config.id);
+						switch (obj.event) {
+							case 'getCheckData':
+								var data = checkStatus.data;
+								var inArgs = "";
+								for (var i = 0; i < data.length; i++) {
+									inArgs = inArgs + ":" + data[i].id
+								}
+								saveBlock(inArgs.substring(1));
+								break;
+								//自定义头工具栏右侧图标 - 提示
+							case 'LAYTABLE_TIPS':
+								layer.alert('这是工具栏右侧自定义的一个图标按钮');
+								break;
+						};
+					});
+				});
+
+			}
+
+			function loadInItemps() {
+				$("#inItems").empty();
+				$("#inItems").append("<option disabled='disabled'  value='null' selected='selected'>请选择点</option>")
+				$.post(
+					CommonLocation + "getItems", {
+						groupName: function() {
+							return $("#inGroups").find("option:selected").text().split(".")[1];
+						}
+					},
+					function(result) {
+						var res = JSON.parse(result);
+						console.log(res)
+						var arr = new Array();
+						for (var j = 0; j < res.items.length; j++) {
+							arr[j] = JSON.parse('{"id":"' + res.items[j] + '"}');
+						}
+						console.log(arr);
+						for (var i = 0; i < res.items.length; i++) {
+							$("#inItems").append("<option value='" + res.items[i] + "'>" + res.items[i] + "</option>");
+						}
+					}
+				);
+			}
+
+			function saveBlock(inArgs) {
+				if ($("#blockName").val() == "" || $("#outItems").find("option:selected").val() == "null" || inArgs == "") {
+					alert("有空缺项!")
+					return;
+				}
+				$.post(
+					CommonLocation + "saveBlock", {
+						blockName: function() {
+							return $("#blockName").val();
+						},
+						outArg: function() {
+							return $("#outItems").find("option:selected").text();
+						},
+						inArgs: inArgs
+					},
+					function(result) {
+						if (result.match("true")) {
+							console.log("保存成功");
+						}
+					}
+				);
+			}
+
+			function showBlock() {
+				$("#startMonitor").attr("disabled", "disabled");
+				$("#blockNameList").empty();
+				$("#blockNameList").append('<option disabled="disabled" value="null" selected="selected">请选择开始监控块</option>');
+				$.post(
+					CommonLocation + "getBlockNames",
+					function(result) {
+						var res = JSON.parse(result);
+						for (var i = 0; i < res.length; i++) {
+							$("#blockNameList").append('<option value="' + res[i] + '">' + res[i] + '</option>');
+						}
+					}
+				);
+			}
+
+			function startMonitor() {
+				$.post(
+					CommonLocation + "startMonitor", {
+						blockName: function() {
+							return $("#blockNameList").find("option:selected").text();
+						}
+					}
+				);
+			}
+
+			function selectedMonitorBlock() {
+				if ($("#blockNameList").find("option:selected").val() != "null") {
+					$("#startMonitor").removeAttr("disabled");
+				}
+			}
+
+			function showOnlineBlock() {
+				$("#stopMonitor").attr("disabled", "disabled");
+				$("#onlineMonitorList").empty();
+				$("#onlineMonitorList").append('<option disabled="disabled" value="null" selected="selected">请选择停止监控块</option>');
+				$.post(
+					CommonLocation + "getOnlineMonitorList",
+					function(result) {
+						var res = JSON.parse(result);
+						console.log(res)
+						for (var i = 0; i < res.length; i++) {
+							$("#onlineMonitorList").append('<option value="' + res[i] + '">' + res[i] + '</option>');
+						}
+					}
+				);
+			}
+
+			function selectedOnlineMonitor() {
+				if ($("#onlineMonitorList").find("option:selected").val() != "null") {
+					$("#stopMonitor").removeAttr("disabled");
+				}
+			}
+
+			function stopMonitor() {
+				$.post(
+					CommonLocation + "stopMonitor", {
+						blockName: function() {
+							return $("#onlineMonitorList").find("option:selected").text();
+						}
+					}
+				);
+			}
+
+			$(function() {
+				layui.use('table', function() {
+					var table = layui.table;
+					table.render({
+						elem: '#inItemsTable' //指定原始表格元素选择器（推荐id选择器）
+							,
+						toolbar: '#toolbarDemo',
+						height: 500, //容器高度
+						width: 800,
+						cols: [
+								[{
+										type: 'checkbox',
+										fixed: 'left'
+									},
+									{
+										field: 'id',
+										title: '信号点名称',
+										width: 749,
+										sort: true,
+									}
+								]
+							] //设置表头
+							,
+						data: [{}]
+					});
+				});
+			});
+			
+			function startMonitorAllList(){
+				$.post(
+					CommonLocation+"startMonitorAllList"
+				);
+			}
+			
+			function stopMonitorAllList(){
+				$.post(
+					CommonLocation+"stopMonitorAllList"
+				);
+			}
+		</script>
+		<script type="text/html" id="toolbarDemo">
+			<div class="layui-btn-container">
+				<button class="layui-btn layui-btn-sm" lay-event="getCheckData">保存块</button>
+			</div>
+		</script>
+	</body>
+</html>
