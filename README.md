@@ -2,7 +2,7 @@
 
 #### 介绍
 使用OPCDA连接ibaPDA进行远程数采及监控
-码云地址：https://gitee.com/OldCorpseChen/opc_monitor
+，码云地址：https://gitee.com/OldCorpseChen/opc_monitor
 
 #### 软件架构
 前后端分离
